@@ -1,0 +1,17 @@
+[Addon]
+Name=Voxtype Bridge
+Comment=Bridge to Voxtype voice-to-text service
+Category=Module
+Version=@PROJECT_VERSION@
+Library=libvoxtypebridge
+Type=@FCITX_ADDON_TYPE@
+OnDemand=False
+Configurable=True
+
+[Addon/Dependencies]
+0=core:@REQUIRED_FCITX_VERSION@
+
+[Addon/OptionalDependencies]
+0=notifications
+1=clipboard
+

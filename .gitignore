@@ -1,0 +1,12 @@
+*
+
+!**/
+!*.cpp
+!*.h
+!CMakeLists.txt
+!.gitignore
+!README.md
+!*.conf.in.in
+!*.cmake
+
+build
