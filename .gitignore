@@ -8,5 +8,6 @@
 !README.md
 !*.conf.in.in
 !*.cmake
+!LICENSE
 
 build
