@@ -15,6 +15,7 @@
 #include "fcitx/instance.h"
 #include "fcitx/text.h"
 #include "fcitx/userinterface.h"
+#include "notifications_public.h"
 #include <fcntl.h>
 #include <fstream>
 #include <spawn.h>
@@ -137,7 +138,10 @@ void VoxtypebridgeState::reset(InputContext *ic) {
     if (!isIdle()) {
         // cancel the recording process.
         std::thread([cancelCommand = cancelCommand_] {
-            executeCommand(std::move(cancelCommand));
+            if (!executeCommand(cancelCommand)) {
+                VOXTYPE_ERROR()
+                    << "Failed to execute cancel command: " << cancelCommand;
+            }
         }).detach();
     }
     recordingStage_ = RecordingStage::Idle;
@@ -317,13 +321,37 @@ void Voxtypebridge::start_recording(InputContext *ic, KeyEvent &keyEvent,
 
     state->recordingStage_ = RecordingStage::Recording;
     state->recordingStageId_ += 1;
-    state->displayText_ = getDisplayText(isEdit, M1Pressed, M2Pressed);
-    updateUI(ic);
+    std::uint64_t currentRecordingStageId = state->recordingStageId_;
     if (isEdit) {
         storeEditText(ic);
     }
-    std::thread([startCommand = state->startCommand_] {
-        executeCommand(std::move(startCommand));
+    auto &dispatcher = instance()->eventDispatcher();
+    auto icRef = ic->watch();
+
+    std::thread([=, this, startCommand = state->startCommand_, &dispatcher] {
+        if (executeCommand(startCommand)) {
+            dispatcher.scheduleWithContext(icRef, [=, this] {
+                if (auto *ic = icRef.get()) {
+                    auto *state = ic->propertyFor(&factory_);
+                    if (state->isRecording() &&
+                        state->recordingStageId_ == currentRecordingStageId) {
+                        state->displayText_ =
+                            getDisplayText(isEdit, M1Pressed, M2Pressed);
+                        updateUI(ic);
+                    }
+                }
+            });
+        } else {
+            dispatcher.scheduleWithContext(icRef, [=, this] {
+                sendNotification("Recording Error",
+                                 "Failed to start recording. Please check your "
+                                 "configuration and system.");
+                if (auto *ic = icRef.get()) {
+                    auto *state = ic->propertyFor(&factory_);
+                    state->reset(ic);
+                }
+            });
+        }
     }).detach();
 }
 
@@ -342,33 +370,45 @@ void Voxtypebridge::stop_recording(InputContext *ic) {
     auto &dispatcher = instance()->eventDispatcher();
     auto icRef = ic->watch();
 
-    std::thread([this, stopCommand = state->stopCommand_, icRef, &dispatcher,
-                 currentRecordingStageId] {
-        executeCommand(std::move(stopCommand));
-
-        dispatcher.scheduleWithContext(icRef, [this, icRef,
-                                               currentRecordingStageId] {
-            if (auto *ic = icRef.get()) {
-                auto *state = ic->propertyFor(&factory_);
-                if (state->isProcessing() &&
-                    state->recordingStageId_ == currentRecordingStageId) {
-                    state->recordingStage_ = RecordingStage::Idle;
-                    std::string result =
-                        readFromFile(config().voiceResultPath.value());
-                    VOXTYPE_DEBUG() << "Read result: " << result;
-                    ic->commitString(result);
-                    state->reset(ic);
-                } else {
-                    VOXTYPE_DEBUG()
-                        << "Input context is not in expected state, ignore "
-                           "result"
-                        << ", isProcessing: " << state->isProcessing()
-                        << ", recordingStageId: " << state->recordingStageId_
-                        << ", expected recordingStageId: "
-                        << currentRecordingStageId;
+    std::thread([=, this, stopCommand = state->stopCommand_, &dispatcher] {
+        if (executeCommand(stopCommand)) {
+            dispatcher.scheduleWithContext(icRef, [=, this] {
+                if (auto *ic = icRef.get()) {
+                    auto *state = ic->propertyFor(&factory_);
+                    if (state->isProcessing() &&
+                        state->recordingStageId_ == currentRecordingStageId) {
+                        state->recordingStage_ = RecordingStage::Idle;
+                        std::string result =
+                            readFromFile(config().voiceResultPath.value());
+                        VOXTYPE_DEBUG() << "Read result: " << result;
+                        ic->commitString(result);
+                        state->reset(ic);
+                    } else {
+                        VOXTYPE_DEBUG()
+                            << "Input context is not in expected state, ignore "
+                               "result"
+                            << ", isProcessing: " << state->isProcessing()
+                            << ", recordingStageId: "
+                            << state->recordingStageId_
+                            << ", expected recordingStageId: "
+                            << currentRecordingStageId;
+                    }
                 }
-            }
-        });
+            });
+        } else {
+            VOXTYPE_ERROR()
+                << "Failed to execute stop command: " << stopCommand;
+
+            dispatcher.scheduleWithContext(icRef, [=, this] {
+                sendNotification("Recording Error",
+                                 "Failed to stop recording. Please check your "
+                                 "configuration and system.");
+                if (auto *ic = icRef.get()) {
+                    auto *state = ic->propertyFor(&factory_);
+                    state->reset(ic);
+                }
+            });
+        }
     }).detach();
 }
 
@@ -440,6 +480,19 @@ std::string Voxtypebridge::getDisplayText(bool isEdit, bool M1Pressed,
     }
 
     return display;
+}
+void Voxtypebridge::sendNotification(const std::string &summary,
+                                     const std::string &message) {
+    auto *notifications = this->notifications();
+    if (!notifications) {
+        VOXTYPE_ERROR() << "Notifications addon is not available";
+        return;
+    }
+    VOXTYPE_DEBUG() << "Sending notification. Summary: " << summary
+                    << ", Message: " << message;
+    notifications->call<fcitx::INotifications::sendNotification>(
+        "Fcitx5 Voxtype Bridge", 0, "", summary, message,
+        std::vector<std::string>(), 3000, nullptr, nullptr);
 }
 
 class VoxtypebridgeModuleFactory : public AddonFactory {

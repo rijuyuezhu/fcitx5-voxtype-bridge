@@ -174,6 +174,7 @@ class Voxtypebridge final : public AddonInstance {
     }
 
     const auto &config() const { return config_; }
+    void sendNotification(const std::string &summary, const std::string &message);
 
   private:
     void start_recording(InputContext *ic, KeyEvent &keyEvent, bool isEdit);
@@ -191,6 +192,7 @@ class Voxtypebridge final : public AddonInstance {
     VoxtypebridgeConfig config_;
     FactoryFor<VoxtypebridgeState> factory_;
     FCITX_ADDON_DEPENDENCY_LOADER(clipboard, instance_->addonManager());
+    FCITX_ADDON_DEPENDENCY_LOADER(notifications, instance_->addonManager());
 };
 
 enum class RecordingStage {
