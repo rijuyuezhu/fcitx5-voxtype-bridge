@@ -5,7 +5,6 @@
 #include "fcitx-config/iniparser.h"
 #include "fcitx-config/option.h"
 #include "fcitx-config/rawconfig.h"
-#include "fcitx-utils/eventloopinterface.h"
 #include "fcitx-utils/handlertable.h"
 #include "fcitx-utils/i18n.h"
 #include "fcitx-utils/key.h"
@@ -24,6 +23,11 @@ enum class VoiceModifierKey { None, Shift, Ctrl, Alt, Super };
 FCITX_CONFIG_ENUM_NAME_WITH_I18N(VoiceModifierKey, N_("None"), N_("Shift"),
                                  N_("Ctrl"), N_("Alt"), N_("Super"));
 
+enum class VoiceInputMode { PushToTalk, Trigger };
+
+FCITX_CONFIG_ENUM_NAME_WITH_I18N(VoiceInputMode, N_("Push to talk"),
+                                 N_("Trigger"));
+
 FCITX_CONFIGURATION(
     VoxtypebridgeConfig,
 
@@ -31,20 +35,24 @@ FCITX_CONFIGURATION(
                                      _("Voice Input Hotkey"),
                                      fcitx::KeyList{fcitx::Key("F9")}};
 
-    fcitx::Option<fcitx::KeyList> voiceInputEditkey{
-        this, "VoiceInputEditkey", _("Voice Input Edit Key"),
-        fcitx::KeyList{fcitx::Key("F10")}};
+    Option<KeyList> voiceInputEditkey{this, "VoiceInputEditkey",
+                                      _("Voice Input Edit Key"),
+                                      fcitx::KeyList{fcitx::Key("F10")}};
+
+    OptionWithAnnotation<VoiceInputMode, VoiceInputModeI18NAnnotation>
+        voiceInputMode{this, "VoiceInputMode", _("Voice Input Mode"),
+                       VoiceInputMode::Trigger};
 
     OptionWithAnnotation<VoiceModifierKey, VoiceModifierKeyI18NAnnotation>
-        VoiceModifier_M1{this, "VoiceModifier_M1", _("Voice Modifier M1"),
+        voiceModifier_M1{this, "VoiceModifier_M1", _("Voice Modifier M1"),
                          VoiceModifierKey::Shift};
     OptionWithAnnotation<VoiceModifierKey, VoiceModifierKeyI18NAnnotation>
-        VoiceModifier_M2{this, "VoiceModifier_M2", _("Voice Modifier M2"),
+        voiceModifier_M2{this, "VoiceModifier_M2", _("Voice Modifier M2"),
                          VoiceModifierKey::Ctrl};
 
     Option<std::string> voiceCommandStart{
         this, "voiceCommandStart", _("Voice Command Start"),
-        "voxtype record start --file /tmp/voxtype-result"};
+        "voxtype record start --file /tmp/voxtype-result --wait-till-idle"};
     Option<std::string> voiceCommandStop{
         this, "voiceCommandStop", _("Voice Command Stop"),
         "voxtype record stop --wait-till-idle"};
@@ -55,7 +63,7 @@ FCITX_CONFIGURATION(
     Option<std::string> voiceCommandM1Start{
         this, "voiceCommandM1Start", _("Voice Command M1 Start"),
         "voxtype record start --file /tmp/voxtype-result "
-        "--complex-post-process"};
+        "--complex-post-process --wait-till-idle"};
     Option<std::string> voiceCommandM1Stop{
         this, "voiceCommandM1Stop", _("Voice Command M1 Stop"),
         "voxtype record stop --wait-till-idle"};
@@ -65,7 +73,8 @@ FCITX_CONFIGURATION(
 
     Option<std::string> voiceCommandM2Start{
         this, "voiceCommandM2Start", _("Voice Command M2 Start"),
-        "voxtype record start --file /tmp/voxtype-result --model base.en"};
+        "voxtype record start --file /tmp/voxtype-result --model base.en "
+        "--wait-till-idle"};
     Option<std::string> voiceCommandM2Stop{
         this, "voiceCommandM2Stop", _("Voice Command M2 Stop"),
         "voxtype record stop --wait-till-idle"};
@@ -76,7 +85,7 @@ FCITX_CONFIGURATION(
     Option<std::string> voiceCommandM1M2Start{
         this, "voiceCommandM1M2Start", _("Voice Command M1M2 Start"),
         "voxtype record start --file /tmp/voxtype-result --model base.en "
-        "--complex-post-process"};
+        "--complex-post-process --wait-till-idle"};
     Option<std::string> voiceCommandM1M2Stop{
         this, "voiceCommandM1M2Stop", _("Voice Command M1M2 Stop"),
         "voxtype record stop --wait-till-idle"};
@@ -87,7 +96,7 @@ FCITX_CONFIGURATION(
     Option<std::string> voiceEditCommandStart{
         this, "voiceEditCommandStart", _("Voice Edit Command Start"),
         "voxtype record start --file /tmp/voxtype-result --edit "
-        "--edit-input-file /tmp/voxtype-edit-text"};
+        "--edit-input-file /tmp/voxtype-edit-text --wait-till-idle"};
     Option<std::string> voiceEditCommandStop{
         this, "voiceEditCommandStop", _("Voice Edit Command Stop"),
         "voxtype record stop --wait-till-idle"};
@@ -99,7 +108,7 @@ FCITX_CONFIGURATION(
         this, "voiceEditCommandM1Start", _("Voice Edit Command M1 Start"),
         "voxtype record start --file /tmp/voxtype-result "
         "--complex-post-process --edit --edit-input-file "
-        "/tmp/voxtype-edit-text"};
+        "/tmp/voxtype-edit-text --wait-till-idle"};
     Option<std::string> voiceEditCommandM1Stop{
         this, "voiceEditCommandM1Stop", _("Voice Edit Command M1 Stop"),
         "voxtype record stop --wait-till-idle"};
@@ -110,7 +119,7 @@ FCITX_CONFIGURATION(
     Option<std::string> voiceEditCommandM2Start{
         this, "voiceEditCommandM2Start", _("Voice Edit Command M2 Start"),
         "voxtype record start --file /tmp/voxtype-result --model base.en "
-        "--edit --edit-input-file /tmp/voxtype-edit-text"};
+        "--edit --edit-input-file /tmp/voxtype-edit-text --wait-till-idle"};
     Option<std::string> voiceEditCommandM2Stop{
         this, "voiceEditCommandM2Stop", _("Voice Edit Command M2 Stop"),
         "voxtype record stop --wait-till-idle"};
@@ -122,7 +131,7 @@ FCITX_CONFIGURATION(
         this, "voiceEditCommandM1M2Start", _("Voice Edit Command M1M2 Start"),
         "voxtype record start --file /tmp/voxtype-result --model base.en "
         "--complex-post-process --edit --edit-input-file "
-        "/tmp/voxtype-edit-text"};
+        "/tmp/voxtype-edit-text --wait-till-idle"};
     Option<std::string> voiceEditCommandM1M2Stop{
         this, "voiceEditCommandM1M2Stop", _("Voice Edit Command M1M2 Stop"),
         "voxtype record stop --wait-till-idle"};
@@ -153,8 +162,7 @@ class Voxtypebridge final : public AddonInstance {
 
     Instance *instance() { return instance_; }
 
-    void trigger(InputContext *inputContext);
-    void updateUI(InputContext *inputContext);
+    void updateUI(InputContext *ic);
     auto &factory() { return factory_; }
 
     void reloadConfig() override { readAsIni(config_, configFile); }
@@ -168,17 +176,62 @@ class Voxtypebridge final : public AddonInstance {
     const auto &config() const { return config_; }
 
   private:
+    void start_recording(InputContext *ic, KeyEvent &keyEvent, bool isEdit);
+    void stop_recording(InputContext *ic);
+    void cancel_recording(InputContext *ic);
+    // return value: <is_hotkey_matched, is_edit_mode>
+    auto check_hotkey(const KeyEvent &keyEvent) -> std::pair<bool, bool>;
+    void storeEditText(InputContext *ic);
+    std::string getEditText(InputContext *ic);
+    std::string getDisplayText(bool isEdit, bool M1Pressed, bool M2Pressed);
+
     Instance *instance_;
     std::vector<std::unique_ptr<fcitx::HandlerTableEntry<fcitx::EventHandler>>>
         eventHandlers_;
     VoxtypebridgeConfig config_;
     FactoryFor<VoxtypebridgeState> factory_;
-    std::unique_ptr<EventSourceTime> clearPasswordTimer_;
+    FCITX_ADDON_DEPENDENCY_LOADER(clipboard, instance_->addonManager());
 };
 
+enum class RecordingStage {
+    Idle,
+    Recording,
+    Processing,
+};
+
+class VoxtypebridgeState : public InputContextProperty {
+  public:
+    VoxtypebridgeState(Voxtypebridge *q) : q_(q) {}
+    void reset(InputContext *ic);
+    void chooseCommand(bool M1Pressed, bool M2Pressed, bool isEdit);
+    bool isIdle() const { return recordingStage_ == RecordingStage::Idle; }
+    bool isRecording() const {
+        return recordingStage_ == RecordingStage::Recording;
+    }
+    bool isProcessing() const {
+        return recordingStage_ == RecordingStage::Processing;
+    }
+
+    RecordingStage recordingStage_{RecordingStage::Idle};
+    std::uint64_t recordingStageId_{0};
+
+    Voxtypebridge *q_;
+
+    bool M1Pressed_{false};
+    bool M2Pressed_{false};
+    bool isEdit_{false};
+    std::string startCommand_;
+    std::string stopCommand_;
+    std::string cancelCommand_;
+    std::string displayText_;
+};
 FCITX_DECLARE_LOG_CATEGORY(voxtypebridge);
 
 #define VOXTYPE_DEBUG() FCITX_LOGC(::fcitx::voxtypebridge::voxtypebridge, Debug)
+#define VOXTYPE_INFO() FCITX_LOGC(::fcitx::voxtypebridge::voxtypebridge, Info)
+#define VOXTYPE_WARN()                                                         \
+    FCITX_LOGC(::fcitx::voxtypebridge::voxtypebridge, Warning)
+#define VOXTYPE_ERROR() FCITX_LOGC(::fcitx::voxtypebridge::voxtypebridge, Error)
 } // namespace fcitx::voxtypebridge
 
 #endif // _FCITX_VOXTYPEBRIDGE_H_
