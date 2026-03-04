@@ -414,16 +414,21 @@ void Voxtypebridge::stop_recording(InputContext *ic) {
 
 auto Voxtypebridge::check_hotkey(const KeyEvent &keyEvent)
     -> std::pair<bool, bool> {
-    Key key_without_modifier{keyEvent.key().sym(), KeyState()};
-    if (key_without_modifier.checkKeyList(config_.voiceInputHotkey.value())) {
+    KeySym keySym{keyEvent.key().sym()};
+    KeySym voiceInputHotKeySym{
+        Key::keySymFromString(config_.voiceInputHotkey.value())};
+    KeySym voiceInputEditKeySym{
+        Key::keySymFromString(config_.voiceInputEditkey.value())};
+
+    if (keySym == voiceInputHotKeySym) {
         return {true, false};
-    } else if (key_without_modifier.checkKeyList(
-                   config_.voiceInputEditkey.value())) {
+    } else if (keySym == voiceInputEditKeySym) {
         return {true, true};
     } else {
         return {false, false};
     }
 }
+
 void Voxtypebridge::storeEditText(InputContext *ic) {
     std::string editText = getEditText(ic);
     std::string editTextStorePath = config_.voiceEditTextStorePath.value();

@@ -31,13 +31,12 @@ FCITX_CONFIG_ENUM_NAME_WITH_I18N(VoiceInputMode, N_("Push to talk"),
 FCITX_CONFIGURATION(
     VoxtypebridgeConfig,
 
-    Option<KeyList> voiceInputHotkey{this, "VoiceInputHotkey",
-                                     _("Voice Input Hotkey"),
-                                     fcitx::KeyList{fcitx::Key("F9")}};
+    Option<std::string> voiceInputHotkey{
+        this, "VoiceInputHotkey",
+        _("Voice Input Hotkey (Key Sym). E.g. F10, Alt_R.\nSee https://github.com/fcitx/fcitx5/blob/master/src/lib/fcitx-utils/keynametable.h"), "F9"};
 
-    Option<KeyList> voiceInputEditkey{this, "VoiceInputEditkey",
-                                      _("Voice Input Edit Key"),
-                                      fcitx::KeyList{fcitx::Key("F10")}};
+    Option<std::string> voiceInputEditkey{
+        this, "VoiceInputEditkey", _("Voice Input Edit Key (Key Sym)"), "F10"};
 
     OptionWithAnnotation<VoiceInputMode, VoiceInputModeI18NAnnotation>
         voiceInputMode{this, "VoiceInputMode", _("Voice Input Mode"),
@@ -174,7 +173,8 @@ class Voxtypebridge final : public AddonInstance {
     }
 
     const auto &config() const { return config_; }
-    void sendNotification(const std::string &summary, const std::string &message);
+    void sendNotification(const std::string &summary,
+                          const std::string &message);
 
   private:
     void start_recording(InputContext *ic, KeyEvent &keyEvent, bool isEdit);
