@@ -34,6 +34,10 @@ namespace {
 
 // using spawn in multithreaded program
 bool executeCommand(const std::string &command) {
+    if (command.empty()) {
+        VOXTYPE_DEBUG() << "Empty command, skip execution";
+        return true;
+    }
     VOXTYPE_DEBUG() << "Executing command: " << command;
 
     pid_t pid;
