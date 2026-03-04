@@ -33,7 +33,10 @@ FCITX_CONFIGURATION(
 
     Option<std::string> voiceInputHotkey{
         this, "VoiceInputHotkey",
-        _("Voice Input Hotkey (Key Sym). E.g. F10, Alt_R.\nSee https://github.com/fcitx/fcitx5/blob/master/src/lib/fcitx-utils/keynametable.h"), "F9"};
+        _("Voice Input Hotkey (Key Sym). E.g. F10, Alt_R.\nSee "
+          "https://github.com/fcitx/fcitx5/blob/master/src/lib/fcitx-utils/"
+          "keynametable.h"),
+        "F9"};
 
     Option<std::string> voiceInputEditkey{
         this, "VoiceInputEditkey", _("Voice Input Edit Key (Key Sym)"), "F10"};
@@ -138,6 +141,13 @@ FCITX_CONFIGURATION(
         this, "voiceEditCommandM1M2Cancel", _("Voice Edit Command M1M2 Cancel"),
         "voxtype record cancel"};
 
+    Option<std::string> commandFocusIn{this, "commandFocusIn",
+                                       _("Command Focus In"),
+                                       "voxtype record cancel; echo 0 > /tmp/voxtype-hotkey-enable"};
+    Option<std::string> commandFocusOut{this, "commandFocusOut",
+                                        _("Command Focus Out"),
+                                        "echo 1 > /tmp/voxtype-hotkey-enable"};
+
     Option<std::string> voiceResultPath{
         this, "voiceResultPath", _("Voice Result Path"), "/tmp/voxtype-result"};
     Option<std::string> voiceEditTextStorePath{this, "voiceEditTextStorePath",
@@ -185,6 +195,8 @@ class Voxtypebridge final : public AddonInstance {
     void storeEditText(InputContext *ic);
     std::string getEditText(InputContext *ic);
     std::string getDisplayText(bool isEdit, bool M1Pressed, bool M2Pressed);
+    void runCommandFocusIn();
+    void runCommandFocusOut();
 
     Instance *instance_;
     std::vector<std::unique_ptr<fcitx::HandlerTableEntry<fcitx::EventHandler>>>

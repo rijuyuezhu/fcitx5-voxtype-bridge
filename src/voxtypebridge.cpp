@@ -235,6 +235,14 @@ Voxtypebridge::Voxtypebridge(Instance *instance)
             }
         }));
 
+    eventHandlers_.emplace_back(instance_->watchEvent(
+        EventType::InputContextFocusIn, EventWatcherPhase::Default,
+        [this](Event &) { runCommandFocusIn(); }));
+
+    eventHandlers_.emplace_back(instance_->watchEvent(
+        EventType::InputContextFocusOut, EventWatcherPhase::Default,
+        [this](Event &) { runCommandFocusOut(); }));
+
     auto reset = [this](Event &event) {
         auto &icEvent = static_cast<InputContextEvent &>(event);
         auto *state = icEvent.inputContext()->propertyFor(&factory_);
@@ -294,9 +302,10 @@ Voxtypebridge::Voxtypebridge(Instance *instance)
             updateUI(ic);
         }));
     reloadConfig();
+    runCommandFocusIn();
 }
 
-Voxtypebridge::~Voxtypebridge() {}
+Voxtypebridge::~Voxtypebridge() { runCommandFocusOut(); }
 
 void Voxtypebridge::updateUI(InputContext *ic) {
     ic->inputPanel().reset();
@@ -502,6 +511,16 @@ void Voxtypebridge::sendNotification(const std::string &summary,
     notifications->call<fcitx::INotifications::sendNotification>(
         "Fcitx5 Voxtype Bridge", 0, "", summary, message,
         std::vector<std::string>(), 3000, nullptr, nullptr);
+}
+
+void Voxtypebridge::runCommandFocusIn() {
+    VOXTYPE_DEBUG() << "Input context focused, executing focus in command";
+    executeCommand(config_.commandFocusIn.value());
+}
+
+void Voxtypebridge::runCommandFocusOut() {
+    VOXTYPE_DEBUG() << "Input context unfocused, executing focus out command";
+    executeCommand(config_.commandFocusOut.value());
 }
 
 class VoxtypebridgeModuleFactory : public AddonFactory {
